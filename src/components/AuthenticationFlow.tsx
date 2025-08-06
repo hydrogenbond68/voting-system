@@ -1,8 +1,6 @@
 import React, { useState } from 'react';
-import { User, Shield, CheckCircle, AlertCircle } from 'lucide-react';
-import { BiometricCapture } from './BiometricCapture';
+import { User, Shield, CheckCircle, AlertCircle, Lock, Eye, EyeOff } from 'lucide-react';
 import { authService } from '../services/authService';
-import { BiometricData } from '../types';
 
 interface AuthenticationFlowProps {
   onAuthSuccess: (sessionToken: string) => void;
@@ -13,50 +11,54 @@ export const AuthenticationFlow: React.FC<AuthenticationFlowProps> = ({
   onAuthSuccess, 
   onSwitchToRegister 
 }) => {
-  const [step, setStep] = useState<'login' | 'biometric' | 'success'>('login');
+  const [step, setStep] = useState<'login' | 'success'>('login');
   const [nationalId, setNationalId] = useState('');
+  const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [isAuthenticating, setIsAuthenticating] = useState(false);
   const [error, setError] = useState('');
+  const [showTestAccounts, setShowTestAccounts] = useState(false);
 
-  const handleLoginSubmit = (e: React.FormEvent) => {
+  const handleLoginSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (nationalId.trim()) {
+    if (nationalId.trim() && password.trim()) {
       setError('');
-      setStep('biometric');
-    }
-  };
+      setIsAuthenticating(true);
 
-  const handleBiometricCapture = async (biometricData: BiometricData) => {
-    setIsAuthenticating(true);
-    setError('');
-
-    try {
-      const result = await authService.authenticateWithBiometrics(nationalId, biometricData);
-      
-      if (result.success && result.sessionToken) {
-        setStep('success');
-        setTimeout(() => {
-          onAuthSuccess(result.sessionToken);
-        }, 2000);
-      } else {
-        setError(result.error || 'Authentication failed');
+      try {
+        const result = await authService.authenticateWithCredentials(nationalId, password);
+        
+        if (result.success && result.sessionToken) {
+          setStep('success');
+          setTimeout(() => {
+            onAuthSuccess(result.sessionToken);
+          }, 2000);
+        } else {
+          setError(result.error || 'Authentication failed');
+        }
+      } catch (error) {
+        setError('Authentication process failed');
+      } finally {
+        setIsAuthenticating(false);
       }
-    } catch (error) {
-      setError('Authentication process failed');
-    } finally {
-      setIsAuthenticating(false);
+    } else {
+      setError('Please enter both ID and password');
     }
   };
 
-  const handleBiometricError = (error: string) => {
-    setError(error);
+  const handleTestAccountSelect = (testAccount: { nationalId: string; password: string; name: string }) => {
+    setNationalId(testAccount.nationalId);
+    setPassword(testAccount.password);
+    setShowTestAccounts(false);
   };
 
   const resetFlow = () => {
     setStep('login');
     setNationalId('');
+    setPassword('');
     setError('');
     setIsAuthenticating(false);
+    setShowTestAccounts(false);
   };
 
   return (
@@ -78,38 +80,7 @@ export const AuthenticationFlow: React.FC<AuthenticationFlowProps> = ({
             <div className="absolute inset-0 w-16 h-16 border-2 border-blue-400 rounded-full animate-spin" style={{animationDuration: '4s'}}></div>
           </div>
           <h1 className="text-3xl font-bold text-blue-400 neon-text mb-2 font-mono tracking-wider">QUANTUM ACCESS PORTAL</h1>
-          <p className="text-blue-300 font-mono">Neural authentication protocol required</p>
-        </div>
-
-        {/* Step Indicator */}
-        <div className="flex items-center justify-center mb-8">
-          <div className={`flex items-center ${step === 'login' ? 'text-blue-400' : 'text-green-400'}`}>
-            <div className={`w-8 h-8 bg-gradient-to-br rounded-full flex items-center justify-center relative ${
-              step === 'login' ? 'from-blue-400 to-cyan-600 neon-glow' : 'from-green-400 to-emerald-600 neon-glow-green'
-            }`}>
-              {step === 'login' ? <span className="text-black font-bold">1</span> : <CheckCircle className="w-5 h-5 text-black" />}
-              <div className="absolute inset-0 w-8 h-8 border border-blue-400 rounded-full animate-pulse"></div>
-            </div>
-            <span className="ml-2 text-sm font-medium font-mono">ID.SCAN</span>
-          </div>
-          
-          <div className="w-8 h-0.5 bg-gradient-to-r from-blue-400 to-purple-400 mx-4 animate-pulse"></div>
-          
-          <div className={`flex items-center ${
-            step === 'biometric' ? 'text-blue-400' : 
-            step === 'success' ? 'text-green-400' : 'text-gray-500'
-          }`}>
-            <div className={`w-8 h-8 rounded-full flex items-center justify-center relative ${
-              step === 'biometric' ? 'bg-gradient-to-br from-blue-400 to-cyan-600 neon-glow' :
-              step === 'success' ? 'bg-gradient-to-br from-green-400 to-emerald-600 neon-glow-green' : 'bg-gray-600'
-            }`}>
-              {step === 'success' ? <CheckCircle className="w-5 h-5 text-black" /> : <span className="text-black font-bold">2</span>}
-              {(step === 'biometric' || step === 'success') && (
-                <div className="absolute inset-0 w-8 h-8 border border-blue-400 rounded-full animate-pulse"></div>
-              )}
-            </div>
-            <span className="ml-2 text-sm font-medium font-mono">NEURAL.SCAN</span>
-          </div>
+          <p className="text-blue-300 font-mono">Secure credential authentication required</p>
         </div>
 
         {/* Error Display */}
@@ -134,15 +105,15 @@ export const AuthenticationFlow: React.FC<AuthenticationFlowProps> = ({
           <div className="cyber-panel neon-glow p-6 relative overflow-hidden">
             <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-blue-400 to-transparent animate-pulse"></div>
             <div className="text-center mb-6">
-              <User className="w-12 h-12 text-blue-400 mx-auto mb-3 neon-glow animate-pulse" />
-              <h2 className="text-xl font-semibold text-blue-400 neon-text font-mono">NEURAL ID REQUIRED</h2>
-              <p className="text-blue-300 text-sm mt-1 font-mono">Biometric verification will follow</p>
+              <Lock className="w-12 h-12 text-blue-400 mx-auto mb-3 neon-glow animate-pulse" />
+              <h2 className="text-xl font-semibold text-blue-400 neon-text font-mono">SECURE ACCESS PORTAL</h2>
+              <p className="text-blue-300 text-sm mt-1 font-mono">Enter your credentials to access the voting system</p>
             </div>
 
             <form onSubmit={handleLoginSubmit}>
-              <div className="mb-6">
+              <div className="mb-4">
                 <label htmlFor="nationalId" className="block text-sm font-medium text-blue-400 mb-2 font-mono">
-                  NEURAL.ID.CODE
+                  NATIONAL ID
                 </label>
                 <input
                   type="text"
@@ -150,62 +121,100 @@ export const AuthenticationFlow: React.FC<AuthenticationFlowProps> = ({
                   value={nationalId}
                   onChange={(e) => setNationalId(e.target.value)}
                   className="cyber-input w-full px-4 py-3"
-                  placeholder="Enter neural ID sequence"
+                  placeholder="Enter your National ID"
                   required
                 />
               </div>
 
+              <div className="mb-6">
+                <label htmlFor="password" className="block text-sm font-medium text-blue-400 mb-2 font-mono">
+                  PASSWORD
+                </label>
+                <div className="relative">
+                  <input
+                    type={showPassword ? "text" : "password"}
+                    id="password"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    className="cyber-input w-full px-4 py-3 pr-12"
+                    placeholder="Enter your password"
+                    required
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute right-3 top-1/2 transform -translate-y-1/2 text-blue-400 hover:text-blue-300"
+                  >
+                    {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                  </button>
+                </div>
+              </div>
+
               <button
                 type="submit"
-                className="w-full holo-button py-3 font-medium transition-all duration-300"
+                disabled={isAuthenticating}
+                className="w-full holo-button py-3 font-medium transition-all duration-300 disabled:opacity-50"
               >
-                INITIATE NEURAL SCAN
+                {isAuthenticating ? (
+                  <div className="flex items-center justify-center space-x-2">
+                    <div className="cyber-loading"></div>
+                    <span>AUTHENTICATING...</span>
+                  </div>
+                ) : (
+                  'ACCESS VOTING SYSTEM'
+                )}
               </button>
             </form>
 
+            {/* Test Accounts Section */}
+            <div className="mt-6">
+              <button
+                onClick={() => setShowTestAccounts(!showTestAccounts)}
+                className="w-full text-sm text-blue-400 hover:text-blue-300 font-mono border border-blue-400/30 py-2 px-4 hover:bg-blue-900/20 transition-all"
+              >
+                {showTestAccounts ? 'HIDE TEST ACCOUNTS' : 'SHOW TEST ACCOUNTS'}
+              </button>
+              
+              {showTestAccounts && (
+                <div className="mt-4 space-y-2">
+                  <p className="text-xs text-blue-300 font-mono mb-3">Click any account to auto-fill credentials:</p>
+                  {authService.getTestCredentials().map((account, index) => (
+                    <button
+                      key={index}
+                      onClick={() => handleTestAccountSelect(account)}
+                      className="w-full text-left p-3 border border-blue-400/30 hover:border-blue-400 hover:bg-blue-900/20 transition-all text-sm"
+                    >
+                      <div className="flex justify-between items-center">
+                        <div>
+                          <div className="text-blue-400 font-mono font-semibold">{account.name}</div>
+                          <div className="text-blue-300 font-mono text-xs">ID: {account.nationalId}</div>
+                        </div>
+                        <div className="text-blue-300 font-mono text-xs">
+                          Pass: {account.password}
+                        </div>
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+
             <div className="mt-6 text-center">
               <p className="text-sm text-blue-300 font-mono">
-                Neural profile not found?{' '}
+                Don't have an account?{' '}
                 <button
                   onClick={onSwitchToRegister}
                   className="text-blue-400 hover:text-blue-200 font-medium neon-text"
                 >
-                  CREATE PROFILE
+                  REGISTER HERE
                 </button>
               </p>
             </div>
 
             <div className="mt-6 text-xs text-blue-300 text-center font-mono">
-              <p>• Neural patterns quantum encrypted</p>
+              <p>• Credentials securely encrypted</p>
               <p>• Single vote protocol enforced</p>
-              <p>• Anonymous blockchain verification</p>
-            </div>
-          </div>
-        )}
-
-        {/* Biometric Step */}
-        {step === 'biometric' && (
-          <div>
-            <BiometricCapture
-              onCapture={handleBiometricCapture}
-              onError={handleBiometricError}
-            />
-            
-            {isAuthenticating && (
-              <div className="mt-4 cyber-panel border-blue-400 neon-glow p-4 text-center relative overflow-hidden">
-                <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-blue-400 to-transparent animate-pulse"></div>
-                <div className="cyber-loading mx-auto mb-2"></div>
-                <p className="text-blue-400 text-sm font-mono">ANALYZING NEURAL PATTERNS...</p>
-              </div>
-            )}
-
-            <div className="mt-4 text-center">
-              <button
-                onClick={resetFlow}
-                className="text-blue-400 hover:text-blue-200 text-sm underline font-mono"
-              >
-                RETURN TO ID SCAN
-              </button>
+              <p>• Session timeout: 24 hours</p>
             </div>
           </div>
         )}
@@ -216,7 +225,7 @@ export const AuthenticationFlow: React.FC<AuthenticationFlowProps> = ({
             <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-green-400 to-transparent animate-pulse"></div>
             <CheckCircle className="w-16 h-16 text-green-400 mx-auto mb-4 neon-glow-green animate-pulse" />
             <h2 className="text-2xl font-semibold text-green-400 neon-text-green mb-2 font-mono">ACCESS GRANTED!</h2>
-            <p className="text-green-300 mb-4 font-mono">Neural verification complete • Quantum portal initializing...</p>
+            <p className="text-green-300 mb-4 font-mono">Authentication successful • Initializing voting system...</p>
             <div className="cyber-loading mx-auto" style={{borderTopColor: '#4ade80'}}></div>
           </div>
         )}

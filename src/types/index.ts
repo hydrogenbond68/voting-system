@@ -59,4 +59,4 @@ export interface AuthSession {
   expiresAt: string;
   biometricVerified: boolean;
   faceVerified: boolean;
-}
+}        

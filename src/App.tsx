@@ -3,48 +3,85 @@ import { useState } from 'react';
 import { AuthenticationFlow } from './components/AuthenticationFlow';
 import { RegistrationFlow } from './components/RegistrationFlow';
 import { VotingInterface } from './components/VotingInterface';
-import { Shield, LogOut } from 'lucide-react';
+import { Shield, LogOut, User } from 'lucide-react';
 
 function App() {
   const [sessionToken, setSessionToken] = useState<string | null>(null);
   const [currentView, setCurrentView] = useState<'register' | 'login'>('register');
   const [showResults, setShowResults] = useState(false);
+  const [showAuthModal, setShowAuthModal] = useState(false);
 
   const handleAuthSuccess = (token: string) => {
     setSessionToken(token);
+    setShowAuthModal(false);
   };
 
   const handleRegistrationSuccess = () => {
     setCurrentView('login');
+    setShowAuthModal(true);
   };
 
   const handleLogout = () => {
     setSessionToken(null);
     setShowResults(false);
     setCurrentView('register');
+    setShowAuthModal(false);
   };
 
   const handleVoteComplete = () => {
     setShowResults(true);
   };
 
-  if (!sessionToken) {
+  const handleVoteAttempt = () => {
+    if (!sessionToken) {
+      setShowAuthModal(true);
+      return false;
+    }
+    return true;
+  };
+
+  const handleCloseAuthModal = () => {
+    setShowAuthModal(false);
+  };
+
+  // Authentication Modal
+  const AuthModal = () => {
     if (currentView === 'register') {
       return (
-        <RegistrationFlow 
-          onRegistrationSuccess={handleRegistrationSuccess}
-          onSwitchToLogin={() => setCurrentView('login')}
-        />
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+          <div className="relative max-w-md w-full">
+            <button
+              onClick={handleCloseAuthModal}
+              className="absolute -top-4 -right-4 w-8 h-8 bg-red-500/20 border border-red-400 text-red-400 rounded-full flex items-center justify-center hover:bg-red-500/30 transition-colors z-10"
+            >
+              ×
+            </button>
+            <RegistrationFlow 
+              onRegistrationSuccess={handleRegistrationSuccess}
+              onSwitchToLogin={() => setCurrentView('login')}
+            />
+          </div>
+        </div>
       );
     } else {
       return (
-        <AuthenticationFlow 
-          onAuthSuccess={handleAuthSuccess}
-          onSwitchToRegister={() => setCurrentView('register')}
-        />
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+          <div className="relative max-w-md w-full">
+            <button
+              onClick={handleCloseAuthModal}
+              className="absolute -top-4 -right-4 w-8 h-8 bg-red-500/20 border border-red-400 text-red-400 rounded-full flex items-center justify-center hover:bg-red-500/30 transition-colors z-10"
+            >
+              ×
+            </button>
+            <AuthenticationFlow 
+              onAuthSuccess={handleAuthSuccess}
+              onSwitchToRegister={() => setCurrentView('register')}
+            />
+          </div>
+        </div>
       );
     }
-  }
+  };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-900 via-black to-gray-900 relative">
@@ -71,18 +108,30 @@ function App() {
             </div>
             
             <div className="flex items-center space-x-4">
-              <div className="flex items-center space-x-2 text-sm text-green-400">
-                <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse neon-glow-green"></div>
-                <span className="font-mono">AUTHENTICATED</span>
-              </div>
-              
-              <button
-                onClick={handleLogout}
-                className="holo-button px-3 py-2 flex items-center space-x-2 transition-all duration-300"
-              >
-                <LogOut className="w-4 h-4" />
-                <span className="font-mono">LOGOUT</span>
-              </button>
+              {sessionToken ? (
+                <>
+                  <div className="flex items-center space-x-2 text-sm text-green-400">
+                    <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse neon-glow-green"></div>
+                    <span className="font-mono">AUTHENTICATED</span>
+                  </div>
+                  
+                  <button
+                    onClick={handleLogout}
+                    className="holo-button px-3 py-2 flex items-center space-x-2 transition-all duration-300"
+                  >
+                    <LogOut className="w-4 h-4" />
+                    <span className="font-mono">LOGOUT</span>
+                  </button>
+                </>
+              ) : (
+                <button
+                  onClick={() => setShowAuthModal(true)}
+                  className="holo-button px-3 py-2 flex items-center space-x-2 transition-all duration-300 bg-gradient-to-r from-blue-600/20 to-cyan-600/20 border-blue-400 text-blue-400"
+                >
+                  <User className="w-4 h-4" />
+                  <span className="font-mono">SIGN IN</span>
+                </button>
+              )}
             </div>
           </div>
         </div>
@@ -98,8 +147,8 @@ function App() {
                 <Shield className="w-4 h-4 text-white" />
               </div>
               <div>
-                <h3 className="font-medium text-green-400 neon-text-green font-mono tracking-wide">VOTE TRANSMISSION COMPLETE!</h3>
-                <p className="text-green-300 text-sm font-mono">Quantum encryption verified • Blockchain recorded • Identity secured</p>
+                <h3 className="font-medium text-green-400 neon-text-green font-mono tracking-wide">VOTE SUCCESSFULLY CAST!</h3>
+                <p className="text-green-300 text-sm font-mono">Vote recorded • Blockchain verified • Identity secured</p>
               </div>
             </div>
           </div>
@@ -108,6 +157,7 @@ function App() {
         <VotingInterface 
           sessionToken={sessionToken} 
           onVoteComplete={handleVoteComplete}
+          onVoteAttempt={handleVoteAttempt}
         />
       </main>
 
@@ -115,16 +165,19 @@ function App() {
       <footer className="cyber-panel border-t-2 border-cyan-400 mt-12 relative z-10">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
           <div className="text-center text-sm text-cyan-400 font-mono">
-            <p className="neon-text">QUANTUM BIOMETRIC VOTING PROTOCOL • CAPACITY: 3M+ USERS</p>
-            <p className="mt-1 text-cyan-300">NEURAL ENCRYPTION • ANONYMOUS VERIFICATION • BLOCKCHAIN SECURED</p>
+            <p className="neon-text">SECURE DIGITAL VOTING SYSTEM • CAPACITY: 3M+ USERS</p>
+            <p className="mt-1 text-cyan-300">ENCRYPTED AUTHENTICATION • ONE VOTE PER USER • BLOCKCHAIN SECURED</p>
             <div className="mt-2 flex justify-center space-x-4 text-xs">
               <span className="text-green-400">● SYSTEM ONLINE</span>
-              <span className="text-blue-400">● QUANTUM SECURE</span>
-              <span className="text-purple-400">● AI VERIFIED</span>
+              <span className="text-blue-400">● SECURE LOGIN</span>
+              <span className="text-purple-400">● VOTE VERIFIED</span>
             </div>
           </div>
         </div>
       </footer>
+
+      {/* Authentication Modal */}
+      {showAuthModal && <AuthModal />}
     </div>
   );
 }
