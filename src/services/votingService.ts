@@ -1,5 +1,5 @@
 import { Election, Vote, Candidate } from '../types';
-import { authService } from './authService';
+//import { authService } from './authService';
 
 class VotingService {
   private elections = new Map<string, Election>();
@@ -320,6 +320,18 @@ class VotingService {
 
     const userElectionVotes = this.userVotes.get(sessionVerification.userId) || new Set();
     return userElectionVotes.has(electionId);
+  }
+
+  getAllElections(): Election[] {
+    return Array.from(this.elections.values());
+  }
+
+  getAllVotes(): Vote[] {
+    return Array.from(this.votes.values());
+  }
+
+  getVotesByElection(electionId: string): Vote[] {
+    return Array.from(this.votes.values()).filter(vote => vote.electionId === electionId);
   }
 
   private generateVoteId(): string {

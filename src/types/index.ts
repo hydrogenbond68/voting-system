@@ -59,4 +59,46 @@ export interface AuthSession {
   expiresAt: string;
   biometricVerified: boolean;
   faceVerified: boolean;
-}        
+  userRole: 'voter' | 'admin' | 'agent';
+}
+
+export interface ECitizenUser {
+  id: string;
+  nationalId: string;
+  firstName: string;
+  lastName: string;
+  email: string;
+  phoneNumber: string;
+  dateOfBirth: string;
+  county: string;
+  constituency: string;
+  ward: string;
+  isActive: boolean;
+  registrationDate: string;
+}
+
+export interface AdminStats {
+  totalRegisteredVoters: number;
+  totalVotesCast: number;
+  turnoutPercentage: number;
+  electionsByStatus: {
+    active: number;
+    completed: number;
+    upcoming: number;
+  };
+  votesByElection: { [electionId: string]: number };
+  votesByCounty: { [county: string]: number };
+}
+
+export interface AgentActivity {
+  id: string;
+  timestamp: string;
+  userId: string;
+  userRole: string;
+  action: string;
+  details: string;
+  ipAddress: string;
+  location?: string;
+  electionId?: string;
+  candidateId?: string;
+}

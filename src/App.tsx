@@ -1,31 +1,47 @@
 import React from 'react';
 import { useState } from 'react';
-import { AuthenticationFlow } from './components/AuthenticationFlow';
-import { RegistrationFlow } from './components/RegistrationFlow';
+import { ECitizenLogin } from './components/ECitizenLogin';
+import { AdminDashboard } from './components/AdminDashboard';
+import { AgentMonitoring } from './components/AgentMonitoring';
 import { VotingInterface } from './components/VotingInterface';
-import { Shield, LogOut, User } from 'lucide-react';
+import { Shield, LogOut, User, BarChart3, Eye } from 'lucide-react';
+import { agentService } from './services/agentService';
 
 function App() {
   const [sessionToken, setSessionToken] = useState<string | null>(null);
-  const [currentView, setCurrentView] = useState<'register' | 'login'>('register');
+  const [userRole, setUserRole] = useState<'voter' | 'admin' | 'agent' | null>(null);
   const [showResults, setShowResults] = useState(false);
-  const [showAuthModal, setShowAuthModal] = useState(false);
 
-  const handleAuthSuccess = (token: string) => {
+  const handleAuthSuccess = (token: string, role: string) => {
     setSessionToken(token);
-    setShowAuthModal(false);
-  };
-
-  const handleRegistrationSuccess = () => {
-    setCurrentView('login');
-    setShowAuthModal(true);
+    setUserRole(role as 'voter' | 'admin' | 'agent');
+    
+    // Log the login activity
+    agentService.logActivity({
+      userId: token.split('_')[2] || 'unknown',
+      userRole: role,
+      action: 'LOGIN',
+      details: `User logged in via e-Citizen as ${role}`,
+      ipAddress: '192.168.1.100',
+      location: 'Nairobi, Kenya'
+    });
   };
 
   const handleLogout = () => {
+    if (sessionToken && userRole) {
+      agentService.logActivity({
+        userId: sessionToken.split('_')[2] || 'unknown',
+        userRole: userRole,
+        action: 'LOGOUT',
+        details: 'User logged out',
+        ipAddress: '192.168.1.100',
+        location: 'Nairobi, Kenya'
+      });
+    }
+    
     setSessionToken(null);
+    setUserRole(null);
     setShowResults(false);
-    setCurrentView('register');
-    setShowAuthModal(false);
   };
 
   const handleVoteComplete = () => {
@@ -34,55 +50,27 @@ function App() {
 
   const handleVoteAttempt = () => {
     if (!sessionToken) {
-      setShowAuthModal(true);
+      // User will be redirected to login
       return false;
     }
     return true;
   };
 
-  const handleCloseAuthModal = () => {
-    setShowAuthModal(false);
-  };
+  // Show login screen if not authenticated
+  if (!sessionToken || !userRole) {
+    return <ECitizenLogin onAuthSuccess={handleAuthSuccess} />;
+  }
 
-  // Authentication Modal
-  const AuthModal = () => {
-    if (currentView === 'register') {
-      return (
-        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-          <div className="relative max-w-md w-full">
-            <button
-              onClick={handleCloseAuthModal}
-              className="absolute -top-4 -right-4 w-8 h-8 bg-red-500/20 border border-red-400 text-red-400 rounded-full flex items-center justify-center hover:bg-red-500/30 transition-colors z-10"
-            >
-              ×
-            </button>
-            <RegistrationFlow 
-              onRegistrationSuccess={handleRegistrationSuccess}
-              onSwitchToLogin={() => setCurrentView('login')}
-            />
-          </div>
-        </div>
-      );
-    } else {
-      return (
-        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-          <div className="relative max-w-md w-full">
-            <button
-              onClick={handleCloseAuthModal}
-              className="absolute -top-4 -right-4 w-8 h-8 bg-red-500/20 border border-red-400 text-red-400 rounded-full flex items-center justify-center hover:bg-red-500/30 transition-colors z-10"
-            >
-              ×
-            </button>
-            <AuthenticationFlow 
-              onAuthSuccess={handleAuthSuccess}
-              onSwitchToRegister={() => setCurrentView('register')}
-            />
-          </div>
-        </div>
-      );
-    }
-  };
+  // Show appropriate dashboard based on user role
+  if (userRole === 'admin') {
+    return <AdminDashboard sessionToken={sessionToken} onLogout={handleLogout} />;
+  }
 
+  if (userRole === 'agent') {
+    return <AgentMonitoring sessionToken={sessionToken} onLogout={handleLogout} />;
+  }
+
+  // Show voter interface for regular users
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-900 via-black to-gray-900 relative">
       {/* Animated Circuit Background */}
@@ -108,30 +96,23 @@ function App() {
             </div>
             
             <div className="flex items-center space-x-4">
-              {sessionToken ? (
-                <>
-                  <div className="flex items-center space-x-2 text-sm text-green-400">
-                    <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse neon-glow-green"></div>
-                    <span className="font-mono">AUTHENTICATED</span>
-                  </div>
-                  
-                  <button
-                    onClick={handleLogout}
-                    className="holo-button px-3 py-2 flex items-center space-x-2 transition-all duration-300"
-                  >
-                    <LogOut className="w-4 h-4" />
-                    <span className="font-mono">LOGOUT</span>
-                  </button>
-                </>
-              ) : (
-                <button
-                  onClick={() => setShowAuthModal(true)}
-                  className="holo-button px-3 py-2 flex items-center space-x-2 transition-all duration-300 bg-gradient-to-r from-blue-600/20 to-cyan-600/20 border-blue-400 text-blue-400"
-                >
-                  <User className="w-4 h-4" />
-                  <span className="font-mono">SIGN IN</span>
-                </button>
-              )}
+              <div className="flex items-center space-x-2 text-sm text-green-400">
+                <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse neon-glow-green"></div>
+                <span className="font-mono">e-CITIZEN AUTHENTICATED</span>
+              </div>
+              
+              <div className="flex items-center space-x-2 text-sm text-blue-400">
+                <User className="w-4 h-4" />
+                <span className="font-mono">{userRole.toUpperCase()} MODE</span>
+              </div>
+              
+              <button
+                onClick={handleLogout}
+                className="holo-button px-3 py-2 flex items-center space-x-2 transition-all duration-300"
+              >
+                <LogOut className="w-4 h-4" />
+                <span className="font-mono">LOGOUT</span>
+              </button>
             </div>
           </div>
         </div>
@@ -175,9 +156,6 @@ function App() {
           </div>
         </div>
       </footer>
-
-      {/* Authentication Modal */}
-      {showAuthModal && <AuthModal />}
     </div>
   );
 }
